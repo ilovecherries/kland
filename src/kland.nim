@@ -13,6 +13,7 @@ import re
 import strutils
 from strformat import fmt
 import model
+from sequtils import foldl
 
 
 # i assume this just makes an sqlite db in memory
@@ -21,16 +22,20 @@ dbConn.createTables(newPost())
 dbConn.createTables(newThread())
 
 
-var examplePost = newPost("Hello, !!!!!")
-dbConn.insert examplePost
-
 func generateHeader(msg: string): string =
   header(
     h1(msg),
   )
 
 
-func generatePostHTML(post: Post): string =
+iterator reverse*[T](a: seq[T]): T {.inline.} =
+  var i = len(a) - 1
+  while i > -1:
+    yield a[i]
+    dec(i)
+
+
+func generatePostHTML(post: Post, references: seq[int64] = @[]): string =
   `div`(
     id = "p" & $post.id,
     class = "post",
@@ -41,7 +46,8 @@ func generatePostHTML(post: Post): string =
         if post.author.isNone: "Anonymous" else: post.author.get()
       ),
       span(
-        class = "trip"
+        class = "trip",
+        if post.trip.isNone: "" else: post.trip.get()
     ),
     time(
       post.timestamp.format("d/MM/yyyy, h:mm:ss tt")
@@ -54,7 +60,14 @@ func generatePostHTML(post: Post): string =
     # oh, these are the posts that link to it... ummm... ok ill figure out how
     # to do this later lol
     `div`(
-      class = "references"
+      class = "references",
+      foldl(
+        references,
+        a & a(
+          href = "#p" & $b,
+          ">>" & $b
+      ),
+        "")
     )
   ),
   # TODO: need to add the post image
@@ -83,13 +96,23 @@ routes:
 
 
   get re"^\/threads/([0-9]+)$":
-    let thread = parseInt(request.matches[0])
+    let id = parseInt(request.matches[0])
     var response = ""
+    # check if thread exists
+    block:
+      var thread = newThread()
+      try:
+        dbConn.select(thread, "Thread.id = ?", id)
+        response &= generateHeader(thread.title)
+      except NotFoundError:
+        resp Http404, generateHeader("Thread does not exist.")
     block:
       var posts = @[newPost()]
-      dbConn.select(posts, "Post.threadId = ?", thread)
-      for i in posts:
-        response = response & generatePostHTML(i)
+      var postsHTML = ""
+      dbConn.select(posts, "Post.threadId = ?", id)
+      for i in posts.reverse():
+        postsHTML = generatePostHTML(i, @[cast[int64](3), cast[int64](8)]) & postsHTML
+      response &= postsHTML
     resp response
 
 
@@ -104,7 +127,9 @@ routes:
     let title = data["title"].body # the title of the thread
 
     let author =
-      if "author" in data: some(data["author"].body) else: none(string)
+      if "author" in data: some(data["trip"].body) else: none(string)
+    let trip =
+      if "trip" in data: some(data["trip"].body) else: none(string)
 
     var thread = newThread(title)
     dbConn.insert thread
@@ -112,28 +137,28 @@ routes:
     # it seems like inserting the element in the database doesn't update
     # the base object to have the ID, so we have to get it from here...
     block:
-      var threads = @[newThread()]
-      dbConn.select(threads, "Thread.id = ?", thread.id)
-      for i in threads:
-        var post = newPost(content, i.id, author)
-        dbConn.insert post
+      let threadId = dbConn.count(Thread)
+      echo threadId
+      var post = newPost(content, threadId, author = author, trip = trip)
+      dbConn.insert post
 
     resp "Thread successfully created"
 
 
   # create new post in thread
   post re"^\/threads/([0-9]+)$":
+    let threadId = cast[int64](parseInt(request.matches[0]))
     let data = request.formData
 
-    cond "threadId" in data
     cond "content" in data
 
-    let threadId: int64 = parseInt(data["threadId"].body)
     let content = data["content"].body
     let author =
       if "author" in data: some(data["author"].body) else: none(string)
+    let trip =
+      if "trip" in data: some(data["trip"].body) else: none(string)
 
-    var post = newPost(content, threadId, author)
+    var post = newPost(content, threadId, author = author, trip = trip)
     dbConn.insert post
 
     resp "Post successfully created"
