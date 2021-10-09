@@ -28,7 +28,8 @@ func newPost*(content = "",
     threadId: threadId,
     author: author,
     trip: trip,
-    timestamp: timestamp
+    timestamp: timestamp,
+    image: image
   )
 
 func newThread*(title = ""): Thread =

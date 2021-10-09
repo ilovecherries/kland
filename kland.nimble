@@ -13,3 +13,4 @@ bin           = @["kland"]
 requires "nim >= 1.4.8"
 requires "jester >= 0.5.0"
 requires "norm >= 2.3.1"
+requires "nimcrypto >= 0.5.4"
