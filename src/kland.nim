@@ -31,7 +31,11 @@ proc getThread(threadId: int64): Option[Thread] =
     return none(Thread)
 
 func cleanString(s: string): string =
-  s.replace("<", "&#60").replace(">", "&#62")
+  s.replace("<", "&lt;")
+    .replace(">", "&gt;")
+    .replace("&", "&amp")
+    .replace("\"", "&quot;")
+    .replace("'", "&apos;")
 
 
 # TODO: i need to find out what type the form data is and extract the

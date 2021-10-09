@@ -84,10 +84,10 @@ func generatePostHTML*(post: Post, references: seq[int64] = @[]): string =
   span(
     class = "content",
     p(
-      post.content.replacef(re">>([0-9]+)", a(
+      post.content.replacef(re"&gt;&gt;([0-9]+)", a(
         class = "reference",
         href = "#p$1",
-        ">>$1"
+        "&gt;&gt;$1"
     ))
   )
   )
