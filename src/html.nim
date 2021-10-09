@@ -8,13 +8,6 @@ from xmltree import escape
 import norm/[sqlite]
 from re import re, replacef
 
-func cleanString(s: string): string =
-  s.replace("<", "&lt;")
-    .replace(">", "&gt;")
-    .replace("&", "&amp")
-    # .replace("\"", "&quot;")
-    # .replace("'", "&apos;")
-
 
 func generateHeader*(msg: string, showThreads: bool): string =
   `div`(
@@ -107,7 +100,7 @@ proc generateThreadEntryHTML*(dbConn: DbConn, thread: Thread): string =
       thread.title
     ),
     time(
-      class = "lastpost",
+      class = "lastPost",
       formatPostTime(recentPost.timestamp)
     ),
     time(
