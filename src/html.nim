@@ -1,11 +1,19 @@
-from htmlgen import `div`, h1, span, time, header, a, p, img, form, input,
-    textarea, link
+import htmlgen
 import model
 import options
 from times import format, DateTime
 from sequtils import foldl
+from strutils import replace
+from xmltree import escape
 import norm/[sqlite]
 from re import re, replacef
+
+func cleanString(s: string): string =
+  s.replace("<", "&lt;")
+    .replace(">", "&gt;")
+    .replace("&", "&amp")
+    # .replace("\"", "&quot;")
+    # .replace("'", "&apos;")
 
 
 func generateHeader*(msg: string, showThreads: bool): string =
@@ -16,14 +24,6 @@ func generateHeader*(msg: string, showThreads: bool): string =
       class = "nav",
       if showThreads: a(href = "/", "Thread list") else: ""
     )
-  )
-
-
-func generateCSSHTML*(): string =
-  link(
-    rel = "stylesheet",
-    `type` = "text/css",
-    href = "/style.css"
   )
 
 
@@ -84,7 +84,7 @@ func generatePostHTML*(post: Post, references: seq[int64] = @[]): string =
   span(
     class = "content",
     p(
-      post.content.replacef(re"&gt;&gt;([0-9]+)", a(
+      escape(post.content).replacef(re"&gt;&gt;([0-9]+)", a(
         class = "reference",
         href = "#p$1",
         "&gt;&gt;$1"
@@ -177,8 +177,30 @@ func generatePostFieldHTML*(threadId: Option[int64] = none(int64)): string =
   )
 
 
-func generatePostsHTML*(posts: seq[Post]): string = 
+proc generatePostsHTML*(posts: seq[Post]): string =
+  echo escape(posts[0].content)
   `div`(
     class = "posts",
     foldl(posts, a & generatePostHTML(b), "")
+  )
+
+
+func generateDocumentHTML*(title: string, body: string): string =
+  "<!DOCTYPE html>" & html(
+    head(
+      title(title),
+      meta(
+        name = "viewport",
+        content = "width=device-width,maximum-scale=1"
+    ),
+    meta(charset = "UTF-8"),
+    link(
+      rel = "stylesheet",
+      `type` = "text/css",
+      href = "/style.css"
+  ),
+  ),
+    body(
+      body
+    )
   )

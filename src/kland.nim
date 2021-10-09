@@ -30,13 +30,6 @@ proc getThread(threadId: int64): Option[Thread] =
   except NotFoundError:
     return none(Thread)
 
-func cleanString(s: string): string =
-  s.replace("<", "&lt;")
-    .replace(">", "&gt;")
-    .replace("&", "&amp")
-    .replace("\"", "&quot;")
-    .replace("'", "&apos;")
-
 
 # TODO: i need to find out what type the form data is and extract the
 # post creation into a separate function...
@@ -48,11 +41,11 @@ proc generateTrip(trip: string): string =
 
 routes:
   get "/":
-    var response = generateCSSHTML()
+    var response = ""
     response &= generateHeader("20% ruined", false)
     response &= generatePostFieldHTML()
     response &= generateThreadEntriesHTML(dbConn)
-    resp response
+    resp generateDocumentHTML("welcome to kland!", response)
 
 
   get "/threads/":
@@ -61,13 +54,15 @@ routes:
 
   get re"^\/threads/([0-9]+)$":
     let id = parseInt(request.matches[0])
-    var response = generateCSSHTML()
+    var response = ""
+    var title = ""
     # check if thread exists
     block:
       var thread = newThread()
       try:
         dbConn.select(thread, "Thread.id = ?", id)
         response &= generateHeader(thread.title, true)
+        title = thread.title
       except NotFoundError:
         resp Http404, generateHeader("Thread does not exist.", true)
     block:
@@ -75,7 +70,7 @@ routes:
       dbConn.select(posts, "Post.threadId = ?", id)
       response &= generatePostsHTML(posts)
     response &= generatePostFieldHTML(some(cast[int64](id)))
-    resp response
+    resp generateDocumentHTML(title, response)
 
 
   # create new thread
@@ -85,13 +80,13 @@ routes:
     cond ("content" in data) and data["content"].body.len() != 0
     cond ("title" in data) and data["title"].body.len() != 0
 
-    var content = data["content"].body.cleanString # content of the first post
-    let title = data["title"].body.cleanString # the title of the thread
+    var content = data["content"].body # content of the first post
+    let title = data["title"].body # the title of the thread
 
     # clean the html content so that we don't get fucked
 
     let author = if ("author" in data) and data["author"].body.len() != 0:
-      some(data["author"].body.cleanString)
+      some(data["author"].body)
       else: none(string)
     let trip = if ("trip" in data) and data["trip"].body.len() != 0:
       some(generateTrip(data["trip"].body))
@@ -117,9 +112,9 @@ routes:
 
     cond ("content" in data) and data["content"].body.len() != 0
 
-    let content = data["content"].body.cleanString
+    let content = data["content"].body
     let author = if ("author" in data) and data["author"].body.len() != 0:
-      some(data["author"].body.cleanString)
+      some(data["author"].body)
       else: none(string)
     let trip = if ("trip" in data) and data["trip"].body.len() != 0:
       some(generateTrip(data["trip"].body))
