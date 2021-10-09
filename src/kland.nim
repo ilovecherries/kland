@@ -2,21 +2,21 @@
 # uses this file as the main entry point of the application.
 
 import jester
-from htmlgen import `div`, h1, span, time, header, a, p
+from htmlgen import `div`, h1, span, time, header, a, p, img, form, input, textarea
 
 import system
 from times import format
 
 import norm/[sqlite]
 import options
-import re
 import strutils
-from strformat import fmt
 import model
+
+from re import re
+from strformat import fmt
 from sequtils import foldl
 
 
-# i assume this just makes an sqlite db in memory
 let dbConn* = open(":memory", "", "", "")
 dbConn.createTables(newPost())
 dbConn.createTables(newThread())
@@ -57,8 +57,6 @@ func generatePostHTML(post: Post, references: seq[int64] = @[]): string =
       class = "postlink",
       "#" & $post.id
     ),
-    # oh, these are the posts that link to it... ummm... ok ill figure out how
-    # to do this later lol
     `div`(
       class = "references",
       foldl(
@@ -70,7 +68,22 @@ func generatePostHTML(post: Post, references: seq[int64] = @[]): string =
         "")
     )
   ),
-  # TODO: need to add the post image
+  if post.image.isNone: "" else:
+    `div`(
+      class = "postimage",
+      a(
+        class = "directlink",
+        href = post.image.get(),
+        post.image.get()
+      ),
+      a(
+        href = post.image.get(),
+        img(
+          src = post.image.get(),
+          alt = "Post Image"
+        )
+      )
+    ),
   span(
     class = "content",
     p(
@@ -80,9 +93,108 @@ func generatePostHTML(post: Post, references: seq[int64] = @[]): string =
   )
 
 
+func generateThreadEntryHTML(thread: Thread): string =
+  `div`(
+    class = "thread",
+    a(
+      href = "/threads/" & $thread.id,
+      thread.title
+    ),
+    # we should figure out how to select things backwards first so this isn't so
+    # inefficient
+    # time(
+    #   class="lastpost"
+    # )
+  )
+
+
+func generateSendPostFieldHTML(threadId: int64): string =
+  form(
+    action = "/threads/" & $threadId,
+    `method` = "post",
+    class = "postform",
+    enctype = "multipart/form-data",
+    input(
+      name = "author",
+      id = "pform-author",
+      maxlength = "30",
+      placeholder = "Nickname (optional)"
+    ),
+    input(
+      name = "trip",
+      id = "pform-trip",
+      maxlength = "254",
+      placeholder = "Trip (optional)"
+    ),
+    input(
+      `type` = "file",
+      name = "image",
+      id = "pform-image",
+      accept = "image/*"
+    ),
+    textarea(
+      name = "content",
+      id = "pform-content",
+      placeholder = "Content"
+    ),
+    input(
+      `type` = "submit",
+      value = "Post"
+    )
+  )
+
+
+func generateCreateThreadFieldHTML(): string =
+  form(
+    action = "/threads/",
+    `method` = "post",
+    class = "postform",
+    enctype = "multipart/form-data",
+    input(
+      name = "author",
+      id = "pform-author",
+      maxlength = "30",
+      placeholder = "Nickname (optional)"
+    ),
+    input(
+      name = "trip",
+      id = "pform-trip",
+      maxlength = "254",
+      placeholder = "Trip (optional)"
+    ),
+    input(
+      name = "title",
+      id = "pform-title",
+      maxlength = "254",
+      placeholder = "Subject"
+    ),
+    input(
+      `type` = "file",
+      name = "image",
+      id = "pform-image",
+      accept = "image/*"
+    ),
+    textarea(
+      name = "content",
+      id = "pform-content",
+      placeholder = "Content"
+    ),
+    input(
+      `type` = "submit",
+      value = "Post"
+    )
+  )
+
+
 routes:
   get "/":
-    resp "Hello, World!"
+    var threads = @[newThread()]
+    dbConn.selectAll(threads)
+    var response = ""
+    response &= generateCreateThreadFieldHTML()
+    for i in threads.reverse():
+      response &= generateThreadEntryHTML(i)
+    resp response
 
 
   # this is just for a test
@@ -94,6 +206,8 @@ routes:
       echo i[]
     resp fmt"check console"
 
+  get "/threads/":
+    redirect "/"
 
   get re"^\/threads/([0-9]+)$":
     let id = parseInt(request.matches[0])
@@ -113,6 +227,7 @@ routes:
       for i in posts.reverse():
         postsHTML = generatePostHTML(i, @[cast[int64](3), cast[int64](8)]) & postsHTML
       response &= postsHTML
+    response &= generateSendPostFieldHTML(id)
     resp response
 
 
@@ -134,15 +249,11 @@ routes:
     var thread = newThread(title)
     dbConn.insert thread
 
-    # it seems like inserting the element in the database doesn't update
-    # the base object to have the ID, so we have to get it from here...
-    block:
-      let threadId = dbConn.count(Thread)
-      echo threadId
-      var post = newPost(content, threadId, author = author, trip = trip)
-      dbConn.insert post
+    let threadId = dbConn.count(Thread)
+    var post = newPost(content, threadId, author = author, trip = trip)
+    dbConn.insert post
 
-    resp "Thread successfully created"
+    redirect "/threads/" & $threadId
 
 
   # create new post in thread
@@ -161,5 +272,5 @@ routes:
     var post = newPost(content, threadId, author = author, trip = trip)
     dbConn.insert post
 
-    resp "Post successfully created"
+    redirect "/threads/" & $threadId
 
