@@ -33,19 +33,19 @@ func generatePostHTML*(post: Post, references: seq[int64] = @[]): string =
       span(
         class = "username",
         if post.author.isNone: "Anonymous" else: post.author.get()
-      ),
+      ) & " ",
       span(
         class = "trip",
         if post.trip.isNone: "" else: post.trip.get()
-    ),
+    ) & " ",
     time(
       formatPostTime(post.timestamp)
-    ),
+    ) & " ",
     a(
       href = "#p" & $post.id,
       class = "postlink",
       $post.id
-    ),
+    ) & " ",
     `div`(
       class = "references",
       foldl(
@@ -54,7 +54,7 @@ func generatePostHTML*(post: Post, references: seq[int64] = @[]): string =
           class = "reference",
           href = "#p" & $b,
           ">>" & $b
-      ),
+      ) & " ",
         "")
     )
   ),
@@ -179,7 +179,7 @@ proc generatePostsHTML*(posts: seq[Post]): string =
 
 
 func generateDocumentHTML*(title: string, body: string): string =
-  "<!DOCTYPE html>" & html(
+  html(
     head(
       title(title),
       meta(
