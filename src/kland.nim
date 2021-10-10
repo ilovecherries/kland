@@ -31,12 +31,32 @@ proc getThread(threadId: int64): Option[Thread] =
     return none(Thread)
 
 
-# TODO: i need to find out what type the form data is and extract the
-# post creation into a separate function...
-
 proc generateTrip(trip: string): string =
   let hash = sha512.digest(trip)
   encode(hash.data)[0..9]
+
+
+# TODO: i need to find out what type the form data is and extract the
+# post creation into a separate function...
+proc postFromFormData(data: MultiData, threadId: int64): Post =
+  if not (("content" in data) and data["content"].body.len() != 0):
+    raise newException(ValueError, "Content is missing from post")
+
+  let content = data["content"].body
+  let author = if ("author" in data) and data["author"].body.len() != 0:
+    some(data["author"].body)
+    else: none(string)
+  let trip = if ("trip" in data) and data["trip"].body.len() != 0:
+    some(generateTrip(data["trip"].body))
+    else: none(string)
+  let filename = if ("image" in data) and data["image"].body.len() != 0:
+    let n = "/bucket/" & $(now().format("yyyyMMddhhmmssffffff"))
+    writeFile("public" & n, data.getOrDefault("image").body)
+    some(n)
+    else: none(string)
+
+  return newPost(content, threadId, author = author, trip = trip,
+    image = filename)
 
 
 routes:
@@ -80,24 +100,22 @@ routes:
     cond ("content" in data) and data["content"].body.len() != 0
     cond ("title" in data) and data["title"].body.len() != 0
 
-    var content = data["content"].body # content of the first post
     let title = data["title"].body # the title of the thread
 
     # clean the html content so that we don't get fucked
-
-    let author = if ("author" in data) and data["author"].body.len() != 0:
-      some(data["author"].body)
-      else: none(string)
-    let trip = if ("trip" in data) and data["trip"].body.len() != 0:
-      some(generateTrip(data["trip"].body))
-      else: none(string)
 
     var thread = newThread(title)
     dbConn.insert thread
 
     let threadId = dbConn.count(Thread)
-    var post = newPost(content, threadId, author = author, trip = trip)
-    dbConn.insert post
+    try:
+      var post = postFromFormData(data, threadId)
+      dbConn.insert post
+    except ValueError:
+      resp Http400, generateDocumentHTML(
+        "Bad Request",
+        generateHeader(getCurrentExceptionMsg(), true)
+      )
 
     redirect "/threads/" & $threadId
 
@@ -109,24 +127,13 @@ routes:
     if thread.isNone:
       resp Http404, generateHeader("Thread does not exist.", true)
     let data = request.formData
-
-    cond ("content" in data) and data["content"].body.len() != 0
-
-    let content = data["content"].body
-    let author = if ("author" in data) and data["author"].body.len() != 0:
-      some(data["author"].body)
-      else: none(string)
-    let trip = if ("trip" in data) and data["trip"].body.len() != 0:
-      some(generateTrip(data["trip"].body))
-      else: none(string)
-    let filename = if ("image" in data) and data["image"].body.len() != 0:
-      let n = "/bucket/" & $(now().format("yyyyMMddhhmmssffffff")) & ".png"
-      writeFile("public" & n, data.getOrDefault("image").body)
-      some(n)
-      else: none(string)
-
-    var post = newPost(content, threadId, author = author, trip = trip,
-        image = filename)
-    dbConn.insert post
+    try:
+      var post = postFromFormData(data, threadId)
+      dbConn.insert post
+    except ValueError:
+      resp Http400, generateDocumentHTML(
+        "Bad Request",
+        generateHeader(getCurrentExceptionMsg(), true)
+      )
 
     redirect "/threads/" & $threadId
