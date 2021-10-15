@@ -1,8 +1,4 @@
-# This is just an example to get you started. A typical binary package
-# uses this file as the main entry point of the application.
-
 import jester
-
 import system
 
 import norm/[sqlite]
@@ -11,9 +7,11 @@ import strutils
 import model
 import nimcrypto
 
+from htmlgen import img
 from base64 import encode
 from re import re
 from times import now, format
+from sugar import collect
 
 import html
 
@@ -36,20 +34,22 @@ proc generateTrip(trip: string): string =
   encode(hash.data)[0..9]
 
 
-# TODO: i need to find out what type the form data is and extract the
-# post creation into a separate function...
+func keyExists(data: MultiData, key: string): bool =
+  (key in data) and data[key].body.len() != 0
+
+
 proc postFromFormData(data: MultiData, threadId: int64): Post =
-  if not (("content" in data) and data["content"].body.len() != 0):
+  if not data.keyExists("content"):
     raise newException(ValueError, "Content is missing from post")
 
   let content = data["content"].body
-  let author = if ("author" in data) and data["author"].body.len() != 0:
+  let author = if data.keyExists("author"):
     some(data["author"].body)
     else: none(string)
-  let trip = if ("trip" in data) and data["trip"].body.len() != 0:
+  let trip = if data.keyExists("trip"):
     some(generateTrip(data["trip"].body))
     else: none(string)
-  let filename = if ("image" in data) and data["image"].body.len() != 0:
+  let filename = if data.keyExists("image"):
     let n = "/bucket/" & $(now().format("yyyyMMddhhmmssffffff"))
     writeFile("public" & n, data.getOrDefault("image").body)
     some(n)
@@ -62,9 +62,25 @@ proc postFromFormData(data: MultiData, threadId: int64): Post =
 routes:
   get "/":
     var response = ""
-    response &= generateHeader("20% ruined", false)
+    response &= generateHeader(img(src = "/sbsland.gif", alt = "sbs land"), false)
     response &= generatePostFieldHTML()
-    response &= generateThreadEntriesHTML(dbConn)
+    const sqlText = """
+      SELECT DISTINCT t.title, t.id
+      FROM            "Thread" t
+           INNER JOIN "Post" p
+           ON         p.threadId = t.id
+      ORDER BY        p.id DESC
+    """
+    let threads = collect(newSeq):
+      for i in dbConn.getAllRows(sql sqlText):
+        Thread(
+          title: i[0].to(string),
+          id: i[1].to(int64)
+        )
+    for i in threads:
+      echo i.title
+    response &= generateThreadEntriesHTML(dbConn, threads)
+
     resp generateDocumentHTML("welcome to kland!", response)
 
 
@@ -97,12 +113,10 @@ routes:
   post "/threads/":
     let data = request.formData
 
-    cond ("content" in data) and data["content"].body.len() != 0
-    cond ("title" in data) and data["title"].body.len() != 0
+    cond data.keyExists("content")
+    cond data.keyExists("title")
 
     let title = data["title"].body # the title of the thread
-
-    # clean the html content so that we don't get fucked
 
     var thread = newThread(title)
     dbConn.insert thread

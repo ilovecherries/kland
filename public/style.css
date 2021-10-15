@@ -1,5 +1,5 @@
 .header::after {
-    content: "ww";
+    content: "made with kotlin";
     white-space: pre;
 }
 

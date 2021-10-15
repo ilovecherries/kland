@@ -113,12 +113,10 @@ proc generateThreadEntryHTML*(dbConn: DbConn, thread: Thread): string =
     )
   )
 
-proc generateThreadEntriesHTML*(dbConn: DbConn): string =
-  var threads = @[newThread()]
-  dbConn.selectAll(threads)
+proc generateThreadEntriesHTML*(dbConn: DbConn, threads: seq[Thread]): string =
   var threadsHTML = ""
   for i in threads:
-    threadsHTML = generateThreadEntryHTML(dbConn, i) & threadsHTML
+    threadsHTML = threadsHTML & generateThreadEntryHTML(dbConn, i)
   `div`(
       class = "threads",
       threadsHTML
