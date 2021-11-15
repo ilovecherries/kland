@@ -37,7 +37,6 @@ db.execute <<-SQL
 		thread_id INTEGER NOT NULL,
 		image_id INTEGER,
 		timestamp DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-		ip_address VARCHAR(80),
 		FOREIGN KEY (thread_id) REFERENCES threads(id)
 		ON DELETE CASCADE,
 		FOREIGN KEY (image_id) REFERENCES images(id)
