@@ -60,7 +60,7 @@ def nil_squeeze(s)
 end
 
 class SQLite3::Database
-	def upload_image(tmpfile, bucket = nil)
+	def upload_image(path, bucket = nil)
 		filename = ''
 
 		loop do
@@ -75,7 +75,7 @@ class SQLite3::Database
 			self.execute("INSERT INTO images (url) VALUES (?)", ['/i/' + filename])
 		end
 
-		cp(tmpfile.path, "#{$img_save}/#{filename}")
+		cp(path, "#{$img_save}/#{filename}")
 		self.last_insert_row_id
 	end
 
@@ -171,7 +171,7 @@ post '/threads' do
 	author = nil_squeeze(params[:author])
 	tripcode = nil_squeeze(params[:tripcode])
 	image = if params[:file]
-		params[:file][:tempfile]
+		params[:file][:tempfile].path
 	else
 		nil
 	end
@@ -325,7 +325,7 @@ post '/uploadimage' do
 	bucket = params[:bucket]
 
 	image = if params[:file] && (tmpfile = params[:file][:tempfile])
-		tmpfile
+		tmpfile.path
 	else
 		nil
 	end
