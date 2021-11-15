@@ -122,7 +122,7 @@ post '/threads' do
 		tripcode = hash_tripcode(tripcode)
 	end
 
-	if params[:file] && (tmpfile = params[:file][:tempfile])
+	if params[:file] != "" && params[:file] != nil && (tmpfile = params[:file][:tempfile])
 		found_filename = false
 		filename = ""
 		while found_filename == false
@@ -220,7 +220,7 @@ post "/threads/:id" do
 			tripcode = hash_tripcode(tripcode)
 		end
 
-		if params[:file] && (tmpfile = params[:file][:tempfile])
+		if params[:file] != "" && params[:file] != nil && (tmpfile = params[:file][:tempfile])
 			found_filename = false
 			filename = ""
 			while found_filename == false
