@@ -8,7 +8,7 @@ require 'mimemagic'
 conf = YAML.load(File.read('config.yaml'))
 
 set :port, conf['port'] or 4567
-img_save = conf['image_location'] or 'public/i'
+$img_save = conf['image_location'] or 'public/i'
 
 include FileUtils::Verbose
 
@@ -37,6 +37,7 @@ db.execute <<-SQL
 		thread_id INTEGER NOT NULL,
 		image_id INTEGER,
 		timestamp DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+		ip_address VARCHAR(80),
 		FOREIGN KEY (thread_id) REFERENCES threads(id)
 		ON DELETE CASCADE,
 		FOREIGN KEY (image_id) REFERENCES images(id)
@@ -53,6 +54,61 @@ end
 
 def generate_image_filename()
 	(0...5).map { (97 + rand(26)).chr }.join
+end
+
+def nil_squeeze(s)
+	(s == "") ? nil : s
+end
+
+class SQLite3::Database
+	def upload_image(tmpfile, bucket = nil)
+		filename = ''
+
+		loop do
+			filename = generate_image_filename()
+			if self.execute("SELECT id FROM images WHERE url = ?", ['/i/' + filename]).empty?
+				break
+			end
+		end
+		if bucket != nil and bucket != ""
+			self.execute("INSERT INTO images (url, bucket) VALUES (?, ?)", ['/i/' + filename, bucket])
+		else
+			self.execute("INSERT INTO images (url) VALUES (?)", ['/i/' + filename])
+		end
+
+		cp(tmpfile.path, "#{$img_save}/#{filename}")
+		self.last_insert_row_id
+	end
+
+	def create_post(thread_id, content, author = nil, tripcode = nil, image = nil)
+		if tripcode != nil
+			tripcode = hash_tripcode(tripcode)
+		end
+
+		if image != nil
+			image = self.upload_image(image)
+		end
+
+		if author.is_a?(String) 
+			author = author.nil_squeeze 
+		end
+
+		self.execute(
+			"INSERT INTO posts (content, author, tripcode, thread_id, image_id) VALUES (?, ?, ?, ?, ?)", 
+			[content, author, tripcode, thread_id, image]
+		)
+		self.last_insert_row_id
+	end
+
+	def create_thread(subject, content, author = nil, tripcode = nil, image = nil)
+		self.execute("INSERT INTO threads (title) VALUES (?)", [subject])
+
+		thread_id = self.last_insert_row_id
+
+		create_post(thread_id, content, author, tripcode, image)
+
+		thread_id
+	end
 end
 
 get '/' do
@@ -106,54 +162,57 @@ get '/' do
 end
 
 post '/threads' do
-	if params[:content] == "" or params[:subject] == ""
+	subject = params[:subject]
+	content = params[:content]
+
+	if content.empty? or subject.empty?
 		error 400, 'either the content or the subject is empty'
 	end
 
-	db.execute("INSERT INTO threads (title) VALUES (?)", [params[:subject]])
-	thread_id = db.last_insert_row_id
-
-	content = params[:content]
-	author = params[:author]
-	tripcode = params[:trip]
-	image_id = nil
-
-	if tripcode != ""
-		tripcode = hash_tripcode(tripcode)
+	author = nil_squeeze(params[:author])
+	tripcode = nil_squeeze(params[:tripcode])
+	image = if params[:file]
+		params[:file][:tempfile]
+	else
+		nil
 	end
 
-	if params[:file] != "" && params[:file] != nil && (tmpfile = params[:file][:tempfile])
-		found_filename = false
-		filename = ""
-		while found_filename == false
-			filename = generate_image_filename()
-			found_filename = !File.exist?("#{img_save}/#{filename}")
-		end
-		db.execute("INSERT INTO images (url) VALUES (?)", ['/i/' + filename])
-
-		cp(tmpfile.path, "#{img_save}/#{filename}")
-		image_id = db.last_insert_row_id
-	end
-
-	db.execute(
-		"INSERT INTO posts (content, author, tripcode, thread_id, image_id) VALUES (?, ?, ?, ?, ?)", 
-		[content, author, tripcode, thread_id, image_id]
-	)
+	thread_id = db.create_thread(subject, content, author, tripcode, image)
 
 	redirect "/threads/#{thread_id}"
 end
 
+# THREADLINK_REGEX = />>>([0-9]+)/
+BACKLINK_REGEX = />>([0-9]+)/
+
 get '/threads/:id' do
 	class PostEntry 
-		attr_reader :id, :content, :author, :tripcode, :timestamp, :img
+		@@backlinks = Hash.new
+
+		attr_reader :id, :content, :author, :tripcode, :timestamp, :img, :backlinks
 
 		def initialize(id, content, author, tripcode, timestamp, img)
 			@id = id
+			# add thread links before parsing the backlinks
+			# content = content.gsub('[[/threads/\1][>>>\0]]')
+			# grab the backlinks from the content and then add them to the
+			# hashmap
+			links = content.match(BACKLINK_REGEX) { |m| m.captures }
+			if links
+				links.each do |link|
+					if @@backlinks[link.to_i].nil?
+						@@backlinks[link.to_i] = []
+					end
+					@@backlinks[link.to_i] << id.to_i
+				end
+			end
+			content= content.gsub(BACKLINK_REGEX, '[[#p\1][\0]]')
 			@content = Orgmode::Parser.new(content).to_html
 			@author = author
 			@tripcode = tripcode
 			@timestamp = format_timestamp(timestamp)
 			@img = img
+			@backlinks = @@backlinks[id.to_i]
 		end
 	end
 
@@ -186,9 +245,9 @@ get '/threads/:id' do
 			LEFT JOIN images i
 			ON i.id = p.image_id
 			WHERE p.thread_id = ?
-			ORDER BY p.id ASC;
+			ORDER BY p.id DESC;
 		", [params[:id]]).each do |id, content, author, tripcode, timestamp, img|
-			@posts << PostEntry.new(id, content, author, tripcode, timestamp.to_i, img)
+			@posts.unshift(PostEntry.new(id, content, author, tripcode, timestamp.to_i, img))
 		end
 
 		@header = @thread.title
@@ -198,8 +257,18 @@ get '/threads/:id' do
 end
 
 post "/threads/:id" do
-	if params[:content] == ""
+	content = params[:content]
+
+	if content.empty?
 		error 400, 'the content is empty'
+	end
+
+	author = nil_squeeze(params[:author])
+	tripcode = nil_squeeze(params[:tripcode])
+	image = if params[:file]
+		params[:file][:tempfile]
+	else
+		nil
 	end
 
 	thread_id = params[:id]
@@ -211,33 +280,7 @@ post "/threads/:id" do
 		@header = "Thread not found."
 		erb :empty, :layout => :layout
 	else
-		content = params[:content]
-		author = params[:author]
-		tripcode = params[:trip]
-		image_id = nil
-
-		if tripcode != ""
-			tripcode = hash_tripcode(tripcode)
-		end
-
-		if params[:file] != "" && params[:file] != nil && (tmpfile = params[:file][:tempfile])
-			found_filename = false
-			filename = ""
-			while found_filename == false
-				filename = generate_image_filename()
-				found_filename = !File.exist?("#{img_save}/#{filename}")
-			end
-			db.execute("INSERT INTO images (url) VALUES (?)", ['/i/' + filename])
-
-			cp(tmpfile.path, "#{img_save}/#{filename}")
-			image_id = db.last_insert_row_id
-		end
-
-		db.execute(
-			"INSERT INTO posts (content, author, tripcode, thread_id, image_id) VALUES (?, ?, ?, ?, ?)", 
-			[content, author, tripcode, thread_id, image_id]
-		)
-		post_id = db.last_insert_row_id
+		post_id = db.create_post(thread_id, content, author, tripcode, image)
 
 		redirect "/threads/#{thread_id}#p#{post_id}"
 	end
@@ -281,33 +324,29 @@ end
 
 post '/uploadimage' do
 	bucket = params[:bucket]
-	if params[:file] && (tmpfile = params[:file][:tempfile])
-		found_filename = false
-		filename = ""
-		while found_filename == false
-			filename = generate_image_filename()
-			found_filename = !File.exist?("#{img_save}/#{filename}")
-		end
-		if bucket != nil and bucket != ""
-			bucket = params[:bucket]
-			db.execute("INSERT INTO images (url, bucket) VALUES (?, ?)", ['/i/' + filename, bucket])
-		else
-			db.execute("INSERT INTO images (url) VALUES (?)", ['/i/' + filename])
-		end
 
-		cp(tmpfile.path, "#{img_save}/#{filename}")
+	image = if params[:file] && (tmpfile = params[:file][:tempfile])
+		tmpfile
+	else
+		nil
 	end
 
-	if bucket != nil and bucket != ""
-		redirect '/images?bucket='+bucket
+	if image.nil?
+		error 400, "Image data is empty."
 	else
-		redirect '/images'
+		db.upload_image(image, bucket)
+
+		if bucket != nil and bucket != ""
+			redirect '/images?bucket='+bucket
+		else
+			redirect '/images'
+		end
 	end
 end
 
 get "/i/:image" do
 	image = params[:image]
-	filepath = File.join(img_save, image)
+	filepath = File.join($img_save, image)
 	if File.exist?(filepath)
 		mime_type = MimeMagic.by_magic(File.open(filepath))
 		send_file filepath, type: mime_type

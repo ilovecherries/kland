@@ -13,13 +13,25 @@
                 <time>
                     <%= post.timestamp %>
                 </time>
+                <a href="#p<%= post.id %>" class="postlink">
+                    <%= post.id %>
+                </a>
+                <% if post.backlinks %>
+                    <div class="references">
+                        <% post.backlinks.each do |backlink| %>
+                            <a class="reference" href="#p<%= backlink.to_s %>">
+                                &gt;&gt;<%= backlink.to_s %>
+                            </a>
+                        <% end %>
+                    </div>
+                <% end %>
             </div>
             <% if post.img %>
                 <div class="postimage">
-                    <a class="directlink" href="<%= post.img %>">
+                    <a class="directlink" target="_blank" href="<%= post.img %>">
                         <%= post.img %>
                     </a>
-                    <a href="<%= post.img %>">
+                    <a href="<%= post.img %>" target="_blank">
                         <img src="<%= post.img %>" alt="Post Image" />
                     </a>
                 </div>
