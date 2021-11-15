@@ -48,9 +48,9 @@
                 <h2>Latest uploads:</h2>
                 <div class="linknavigation">
                 <% if @page > 1 %>
-                    <a href="/images?page=<%= @page - 1 %>">Previous <%= @ipp %></a>
+                    <a href="/images?page=<%= @page - 1 %><%= @bucket ? '&bucket='+@bucket : '' %>">Previous <%= @ipp %></a>
                 <% end %>
-                <a href="/images?page=<%= @page + 1 %>">Next <%= @ipp %></a>
+                <a href="/images?page=<%= @page + 1 %><%= @bucket ? '&bucket='+@bucket : '' %>">Next <%= @ipp %></a>
                 <a data-slideshow="">Slideshow</a>
                 </div>
             </div>
@@ -69,9 +69,9 @@
         <div class="subheader specialblock">
             <div class="linknavigation">
                 <% if @page > 1 %>
-                    <a href="/images?page=<%= @page - 1 %>">Previous <%= @ipp %></a>
+                    <a href="/images?page=<%= @page - 1 %><%= @bucket != nil ? '&bucket='+@bucket : '' %>">Previous <%= @ipp %></a>
                 <% end %>
-                <a href="/images?page=<%= @page + 1 %>">Next <%= @ipp %></a>
+                <a href="/images?page=<%= @page + 1 %><%= @bucket ? '&bucket='+@bucket : '' %>">Next <%= @ipp %></a>
                 <a data-slideshow="">Slideshow</a>
             </div>
          </div>
