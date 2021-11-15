@@ -1,0 +1,26 @@
+<form action="/threads" method="post" class="postform" enctype="multipart/formdata">
+	<input name="username" maxlength="30" placeholder="Nickname (optional)">
+	<input name="trip" maxlength="254" placeholder="Trip (optional)">
+	<input name="subject" maxlength="254" required="" placeholder="Subject">
+	<input type="file" name="file" accept="image/*">
+	<textarea name="content" required="" placeholder="Content"></textarea>
+	<input type="submit" value="Post">
+</form>
+<div class="threads">
+	<% @threads.each do |thread| %>
+		<div class="thread">
+			<a href= "<%= '/threads/' + thread.id.to_s %>" >
+				<%= thread.title %>
+			</a>
+			<time class="lastPost">
+				<%= thread.lastPostTimestamp %>
+			</time>
+			<time class="firstPost">
+				<%= thread.firstPostTimestamp %>
+			</time>
+			<span class="posts">
+				P: <%= thread.postCount %>
+			</span>
+		</div>
+	<% end %>
+</div>

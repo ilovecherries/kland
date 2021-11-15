@@ -1,0 +1,20 @@
+<html>
+    <head>
+       <meta name="viewport" content="width=device-width,maximum-scale=1">
+        <link rel="stylesheet" type="text/css" href="/style.css"> 
+    </head>
+    <body>
+        <div class="header">
+            <h1><%= @header or "welcome to hell!" %></h1>
+            <% if @showNav %>
+                <div class="nav">
+                    <a href="/">Thread list</a>
+                </div>
+            <% end %>
+        </div>
+        <%= yield %>
+        <div class="footer">
+            <a href="/images">Upload Images Without Posting</a>
+        </div>
+    </body>
+</html>

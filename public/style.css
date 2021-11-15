@@ -1,5 +1,5 @@
 .header::after {
-    content: "made with kotlin";
+    content: "XwX";
     white-space: pre;
 }
 
@@ -107,7 +107,6 @@ input[type="file"] {
 }
 .postimage .directlink {
    display: block;
-   font-size: 0.6em;
 }
 .postimage img {
    float: none;

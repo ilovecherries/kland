@@ -1,0 +1,37 @@
+<div class="posts">
+    <% @posts.each do |post| %>
+        <div id="<%= 'p' + post.id.to_s %>" class="post">
+            <div class="postinfo">
+                <span class="username">
+                    <%= post.author or "Anonymous" %>
+                </span>
+                <% if post.tripcode %>
+                    <span class="trip">
+                        <%= post.tripcode %>
+                    </span>
+                <% end %>
+                <time>
+                    <%= post.timestamp %>
+                </time>
+            </div>
+            <% if post.img %>
+                <div class="postimage">
+                    <a class="directlink" href="<%= post.img %>">
+                        <%= post.img %>
+                    </a>
+                    <a href="<%= post.img %>">
+                        <img src="<%= post.img %>" alt="Post Image" />
+                    </a>
+                </div>
+            <% end %>
+            <span class="content"><%= post.content %></span>
+        </div>
+    <% end %>
+</div>
+<form action="<%= '/threads/' + @thread.id.to_s%>" method="post" class="postform" enctype="multipart/form-data">
+	<input name="username" maxlength="30" placeholder="Nickname (optional)">
+	<input name="trip" maxlength="254" placeholder="Trip (optional)">
+	<input type="file" name="file" accept="image/*">
+	<textarea name="content" required="" placeholder="Content"></textarea>
+	<input type="submit" value="Post">
+</form>

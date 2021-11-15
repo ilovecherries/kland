@@ -1,0 +1,38 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    mimemagic (0.4.3)
+      nokogiri (~> 1)
+      rake
+    mustermann (1.1.1)
+      ruby2_keywords (~> 0.0.1)
+    nokogiri (1.12.5-x86_64-linux)
+      racc (~> 1.4)
+    org-ruby (0.9.12)
+      rubypants (~> 0.2)
+    racc (1.6.0)
+    rack (2.2.3)
+    rack-protection (2.1.0)
+      rack
+    rake (13.0.6)
+    ruby2_keywords (0.0.5)
+    rubypants (0.7.1)
+    sinatra (2.1.0)
+      mustermann (~> 1.0)
+      rack (~> 2.2)
+      rack-protection (= 2.1.0)
+      tilt (~> 2.0)
+    sqlite3 (1.4.2)
+    tilt (2.0.10)
+
+PLATFORMS
+  x86_64-linux
+
+DEPENDENCIES
+  mimemagic
+  org-ruby
+  sinatra
+  sqlite3
+
+BUNDLED WITH
+   2.2.31

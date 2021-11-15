@@ -1,0 +1,82 @@
+<html>
+    <head>
+       <meta name="viewport" content="width=device-width,maximum-scale=1">
+        <link rel="stylesheet" type="text/css" href="/style.css"> 
+        <link rel="stylesheet" type="text/css" href="/image.css"> 
+        <script src="/compatibility.js"></script>
+        <script src="/image.js"></script>
+    </head>
+    <body>
+        <div class="header specialblock">
+            <% if @bucket %>
+                <h1>Image Uploader <%= "(" + @bucket + ")" %></h1>
+            <% else %>
+                <h1>Image Uploader</h1>
+            <% end %>
+            <p>
+                Use this to upload and store images permanently on kland without making a post
+            </p>
+        </div>
+        <form id="uploadform" action="/uploadimage" method="post" enctype="multipart/form-data" class="postform specialblock">
+        <input type="hidden" name="redirect" value="1">
+        <input type="file" name="file" accept="image/*">
+        <% if @bucket %>
+            <input type="hidden" name="bucket" value="<%= @bucket %>">
+        <% end %>
+        <input type="hidden" name="redirect" value="1">
+        <input type="submit" value="Upload">
+            <div id="pastediv" class="paste" data-bucket="<%= @bucket or '' %>" contenteditable="true">
+                <p data-bucket="<%= @bucket or '' %>">
+                    Or, Paste image here (auto uploads) 📷
+                </p>
+            </div>
+        </form>
+        <div class="postform extradata specialblock">
+            <div class="bucket">
+                <input id="gotoThisBucket" type="text" value="" placeholder="bucket" required="">
+                <button onclick="gotoBucket();">Goto this bucket</button>
+                <p>Buckets are like public folders. If you don't give out the folder
+                name and it's not easy to guess, it'll be "private"</p>
+            </div>
+            <div class="imagenumber">
+                <input type="number" min="0" max="500" step="10" id="pickIPP" value="<%= @ipp %>" placeholder="images per page" required="">
+                <button onclick="setIPP();">Set images per page</button>
+            </div>
+        </div>
+        <div class="uploads">
+            <div class="subheader specialblock">
+                <h2>Latest uploads:</h2>
+                <div class="linknavigation">
+                <% if @page > 1 %>
+                    <a href="/images?page=<%= @page - 1 %>">Previous <%= @ipp %></a>
+                <% end %>
+                <a href="/images?page=<%= @page + 1 %>">Next <%= @ipp %></a>
+                <a data-slideshow="">Slideshow</a>
+                </div>
+            </div>
+            <div class="imagelist">
+                <% if @images %>
+                    <% @images.each do |url| %>
+                        <div class="imagecontainer hiddencontrolcontainer">
+                            <a target="_blank" href="<%= url %>">
+                                <img class="specialblock" src="<%= url %>">
+                            </a>
+                        </div>
+                    <% end%>
+                <% end%>
+            </div>
+        </div>
+        <div class="subheader specialblock">
+            <div class="linknavigation">
+                <% if @page > 1 %>
+                    <a href="/images?page=<%= @page - 1 %>">Previous <%= @ipp %></a>
+                <% end %>
+                <a href="/images?page=<%= @page + 1 %>">Next <%= @ipp %></a>
+                <a data-slideshow="">Slideshow</a>
+            </div>
+         </div>
+        <div class="footer">
+            <a href="/images">Upload Images Without Posting</a>
+        </div>
+    </body>
+</html>
