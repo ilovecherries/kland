@@ -8,11 +8,11 @@ require 'mimemagic'
 conf = YAML.load(File.read('config.yaml'))
 
 set :port, conf['port'] or 4567
-$img_save = conf['image_location'] or 'public/i'
+$img_save = conf['image_location'] or 'i'
 
 include FileUtils::Verbose
 
-db = SQLite3::Database.new "kland.db"
+db = SQLite3::Database.new conf['database_location'] or './kland.db'
 
 # set up the database
 db.execute <<-SQL
@@ -69,11 +69,8 @@ class SQLite3::Database
 				break
 			end
 		end
-		if bucket != nil and bucket != ""
-			self.execute("INSERT INTO images (url, bucket) VALUES (?, ?)", ['/i/' + filename, bucket])
-		else
-			self.execute("INSERT INTO images (url) VALUES (?)", ['/i/' + filename])
-		end
+		bucket = nil if bucket == ''
+		self.execute("INSERT INTO images (url, bucket) VALUES (?, ?)", ['/i/' + filename, bucket])
 
 		cp(path, "#{$img_save}/#{filename}")
 		self.last_insert_row_id

@@ -1,2 +1,3 @@
-image_location: "i"
+image_location: "./i"
 port: 4500
+database_location: "./kland.db"

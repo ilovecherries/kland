@@ -17,6 +17,7 @@ GEM
     rake (13.0.6)
     ruby2_keywords (0.0.5)
     rubypants (0.7.1)
+    sequel (5.50.0)
     sinatra (2.1.0)
       mustermann (~> 1.0)
       rack (~> 2.2)
@@ -31,6 +32,7 @@ PLATFORMS
 DEPENDENCIES
   mimemagic
   org-ruby
+  sequel
   sinatra
   sqlite3
 
